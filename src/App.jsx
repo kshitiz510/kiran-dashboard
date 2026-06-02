@@ -1,23 +1,20 @@
+import { useState } from "react";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
-import Comparisons from "./components/Comparisons"; // Import the Comparisons page
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"; // Import React Router
+import { BrowserRouter as Router } from "react-router-dom";
 import { IoTDataProvider } from "./context/IoTDataContext";
 
 const App = () => {
+  const [activeTab, setActiveTab] = useState("OPERATIONS");
+
   return (
     <Router>
       <IoTDataProvider>
-        <div className="flex min-h-screen">
-          <Sidebar />
-          <div className="flex-grow p-6 ml-72 overflow-y-auto">
-            {/* Define Routes for Navigation */}
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/comparisons" element={<Comparisons />} />
-              <Route path="/comparisons/:optionId" element={<Comparisons />} />
-            </Routes>
+        <div className="flex min-h-screen bg-slate-50">
+          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+          <div className="flex-grow ml-72 overflow-y-auto">
+            <Dashboard activeTab={activeTab} />
           </div>
         </div>
       </IoTDataProvider>

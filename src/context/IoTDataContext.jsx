@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { generateSimulatedFrame, generateHistoricalSeed } from "../utils/telemetrySimulator";
 
 const IoTDataContext = createContext();
@@ -17,12 +18,22 @@ export const IoTDataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : true; // Default to true for robust presentation out-of-the-box
   });
 
+  // Simulation controls
+  const [weather, setWeather] = useState("CLEAR");
+  const [fault, setFault] = useState("NOMINAL");
+  const [dustLevel, setDustLevel] = useState(0.05); // 5% base dust level
+
   const [feeds1, setFeeds1] = useState([]);
   const [feeds2, setFeeds2] = useState([]);
   const [channelData1, setChannelData1] = useState({});
   const [channelData2, setChannelData2] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Cumulative energy calculation states (in Wh)
+  const [cumulativeEnergyNIBB, setCumulativeEnergyNIBB] = useState(0);
+  const [cumulativeEnergyStandard, setCumulativeEnergyStandard] = useState(0);
+  const [cumulativeEnergyFixed, setCumulativeEnergyFixed] = useState(0);
 
   const pollIntervalRef = useRef(null);
 
@@ -45,8 +56,44 @@ export const IoTDataProvider = ({ children }) => {
       const data1 = await res1.json();
       const data2 = await res2.json();
 
-      setFeeds1(data1.feeds || []);
-      setFeeds2(data2.feeds || []);
+      const f1 = data1.feeds || [];
+      const f2 = data2.feeds || [];
+
+      // For live data, compute cumulative energy based on live values.
+      // Since live feeds don't have cumulative data fields, we calculate them on-the-fly.
+      let energyNIBB = 0;
+      let energyStandard = 0;
+      let energyFixed = 0;
+
+      f1.forEach((feed) => {
+        const irr = parseFloat(feed.field1) || 0;
+        const temp = parseFloat(feed.field2) || 0;
+        const volt = parseFloat(feed.field3) || 0;
+        // Reconstruct approximate electrical current and power calculations
+        const isc = 10 * (irr / 1000);
+        const curr = isc * 0.88 * 0.995;
+        const rawPower = volt * curr;
+        
+        const effNIBB = rawPower > 5 ? 0.94 - (temp - 25) * 0.0005 : 0;
+        const effStandard = rawPower > 5 ? 0.86 - (temp - 25) * 0.001 : 0;
+        
+        energyNIBB += rawPower * effNIBB * (15 / 3600);
+        energyStandard += rawPower * effStandard * (15 / 3600);
+        
+        // Approximate static fixed tilt baseline for live comparison
+        const azimuthDiff = Math.abs(180 - (parseFloat(feed.field4) || 180));
+        const thetaFixedFactor = Math.cos((azimuthDiff * Math.PI) / 180);
+        const irrFixed = irr * Math.max(0.2, thetaFixedFactor);
+        const fixedPower = (volt * 0.9) * (10 * (irrFixed / 1000) * 0.88 * 0.92);
+        energyFixed += fixedPower * 0.86 * (15 / 3600);
+      });
+
+      setCumulativeEnergyNIBB(energyNIBB);
+      setCumulativeEnergyStandard(energyStandard);
+      setCumulativeEnergyFixed(energyFixed);
+
+      setFeeds1(f1);
+      setFeeds2(f2);
       setChannelData1(data1.channel || {});
       setChannelData2(data2.channel || {});
       setError(null);
@@ -59,11 +106,27 @@ export const IoTDataProvider = ({ children }) => {
   };
 
   const loadSimulatedData = () => {
-    const historicalData = generateHistoricalSeed(30);
+    const historicalData = generateHistoricalSeed(30, weather, fault, dustLevel);
+    
+    // Accumulate total initial simulated energy
+    let energyNIBB = 0;
+    let energyStandard = 0;
+    let energyFixed = 0;
+
+    historicalData.forEach((frame) => {
+      energyNIBB += frame.generationWhNIBB;
+      energyStandard += frame.generationWhStandard;
+      energyFixed += parseFloat(frame.powerFixed) * (15 / 3600);
+    });
+
+    setCumulativeEnergyNIBB(energyNIBB);
+    setCumulativeEnergyStandard(energyStandard);
+    setCumulativeEnergyFixed(energyFixed);
+
     setFeeds1(historicalData);
-    setFeeds2(historicalData); // Re-use the same structure for azimuth/zenith mapping
-    setChannelData1({ name: "Solar Core Simulator - Node A" });
-    setChannelData2({ name: "Solar Position Simulator - Node B" });
+    setFeeds2(historicalData);
+    setChannelData1({ name: "Solar Core Simulator" });
+    setChannelData2({ name: "Solar Position Simulator" });
     setError(null);
     setIsLoading(false);
   };
@@ -77,7 +140,12 @@ export const IoTDataProvider = ({ children }) => {
       loadSimulatedData();
       
       pollIntervalRef.current = setInterval(() => {
-        const nextFrame = generateSimulatedFrame(new Date());
+        const nextFrame = generateSimulatedFrame(new Date(), weather, fault, dustLevel);
+        
+        setCumulativeEnergyNIBB((prev) => prev + nextFrame.generationWhNIBB);
+        setCumulativeEnergyStandard((prev) => prev + nextFrame.generationWhStandard);
+        setCumulativeEnergyFixed((prev) => prev + parseFloat(nextFrame.powerFixed) * (15 / 3600));
+
         setFeeds1((prev) => [...prev.slice(1), nextFrame]);
         setFeeds2((prev) => [...prev.slice(1), nextFrame]);
       }, 15000);
@@ -94,7 +162,8 @@ export const IoTDataProvider = ({ children }) => {
         clearInterval(pollIntervalRef.current);
       }
     };
-  }, [isDemoMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemoMode, weather, fault, dustLevel]);
 
   const toggleDemoMode = () => {
     setIsDemoMode((prev) => !prev);
@@ -111,6 +180,15 @@ export const IoTDataProvider = ({ children }) => {
         error,
         isDemoMode,
         toggleDemoMode,
+        weather,
+        setWeather,
+        fault,
+        setFault,
+        dustLevel,
+        setDustLevel,
+        cumulativeEnergyNIBB,
+        cumulativeEnergyStandard,
+        cumulativeEnergyFixed,
         refetch: isDemoMode ? loadSimulatedData : fetchLiveTelemetry,
       }}
     >
