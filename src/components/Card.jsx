@@ -2,10 +2,10 @@ import React from "react";
 
 const Card = ({ fieldName, value, icon }) => {
   return (
-    <div className="bg-white shadow-md rounded-xl flex items-center p-4 max-w-xs">
-      <div className="bg-[#f0f4fd] rounded-full p-3">
+    <div className="bg-white border border-gray-150 rounded-xl flex items-center p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-gray-300 hover:scale-[1.01]">
+      <div className="bg-[#f0f4fd] rounded-lg p-3.5 flex items-center justify-center shrink-0">
         {icon ? (
-          <img src={icon} alt="icon" className="h-6 w-6 text-indigo-600" />
+          <img src={icon} alt="icon" className="h-6 w-6 object-contain" />
         ) : (
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -24,9 +24,11 @@ const Card = ({ fieldName, value, icon }) => {
         )}
       </div>
 
-      <div className="ml-4">
-        <p className="text-sm text-gray-500">{fieldName}</p>
-        <p className="text-2xl font-semibold text-gray-900">{value}</p>
+      <div className="ml-4 overflow-hidden">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{fieldName}</p>
+        <p className="text-2xl font-bold text-gray-900 font-mono tracking-tight mt-0.5 whitespace-nowrap overflow-ellipsis">
+          {value}
+        </p>
       </div> 
     </div>
   );

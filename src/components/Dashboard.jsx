@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Line } from "react-chartjs-2";
 import Card from "./Card";
 import temperatureIcon from "../assets/temperature.png";
@@ -6,6 +6,7 @@ import voltageIcon from "../assets/voltage.png";
 import irradianceIcon from "../assets/irradiance.png";
 import azimuthIcon from "../assets/azimuth.png";
 import zenithIcon from "../assets/zenith.png";
+import { useIoTData } from "../context/IoTDataContext";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,77 +28,17 @@ ChartJS.register(
   Legend
 );
 
-// Fetch data for a given channel
-const fetchThingSpeakData = async (
-  setFeeds,
-  setChannelData,
-  setIsLoading,
-  channelID,
-  readAPIKey
-) => {
-  const url = `https://api.thingspeak.com/channels/${channelID}/feeds.json?api_key=${readAPIKey}&results=30`;
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    setFeeds(data.feeds || []);
-    setChannelData(data.channel || {});
-    setIsLoading(false);
-  } catch (error) {
-    console.error("Error fetching data from ThingSpeak:", error);
-    setIsLoading(false);
-  }
-};
-
 const Dashboard = () => {
-  const [feeds1, setFeeds1] = useState([]); // Irradiance, Temperature, Voltage
-  const [feeds2, setFeeds2] = useState([]); // Azimuth, Zenith
-  const [channelData1, setChannelData1] = useState({});
-  const [channelData2, setChannelData2] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Set your channel IDs and API keys
-  const channelID1 = import.meta.env.VITE_CHANNEL_ID1;
-  const channelID2 = import.meta.env.VITE_CHANNEL_ID2;
-  const readAPIKey1 = import.meta.env.VITE_READ_API_KEY1;
-  const readAPIKey2 = import.meta.env.VITE_READ_API_KEY2;
-
-  useEffect(() => {
-    fetchThingSpeakData(
-      setFeeds1,
-      setChannelData1,
-      setIsLoading,
-      channelID1,
-      readAPIKey1
-    );
-    fetchThingSpeakData(
-      setFeeds2,
-      setChannelData2,
-      setIsLoading,
-      channelID2,
-      readAPIKey2
-    );
-
-    const intervalId = setInterval(() => {
-      fetchThingSpeakData(
-        setFeeds1,
-        setChannelData1,
-        setIsLoading,
-        channelID1,
-        readAPIKey1
-      );
-      fetchThingSpeakData(
-        setFeeds2,
-        setChannelData2,
-        setIsLoading,
-        channelID2,
-        readAPIKey2
-      );
-    }, 15000);
-
-    return () => clearInterval(intervalId);
-  }, []);
+  const {
+    feeds1,
+    feeds2,
+    channelData1,
+    channelData2,
+    isLoading,
+    error,
+    isDemoMode,
+    toggleDemoMode,
+  } = useIoTData();
 
   // Extracting data for the first group (Irradiance, Temperature, Voltage)
   const timeLabels1 = feeds1.map((feed) =>
@@ -170,7 +111,45 @@ const Dashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="grid grid-cols-3 gap-6 mb-6">
+      {/* Dashboard Top Header bar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 pb-6 border-b border-gray-200">
+        <div>
+          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">KIRAN Solar Tracker</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Telemetry Source: <span className="font-semibold text-gray-700">{isDemoMode ? (channelData1.name || "Solar Core Simulator") : `ThingSpeak Channels #${import.meta.env.VITE_CHANNEL_ID1 || "2782626"} & #${import.meta.env.VITE_CHANNEL_ID2 || "2782626"}`}</span>
+          </p>
+        </div>
+        <div className="flex items-center space-x-4 mt-4 md:mt-0">
+          {/* Demo Mode Toggle Switch */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg px-4 py-2 shadow-sm">
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 mr-3">
+              {isDemoMode ? "Simulated Telemetry" : "Live IoT Feed"}
+            </span>
+            <button
+              onClick={toggleDemoMode}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isDemoMode ? "bg-[#3b82f6]" : "bg-gray-200"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  isDemoMode ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center shadow-sm">
+          <i className="fas fa-exclamation-triangle mr-3 text-amber-600"></i>
+          <span className="text-sm font-medium">{error}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <Card
           fieldName="Irradiance"
           value={field1Data[field1Data.length - 1]?.toFixed(2) + " W/m²"}
