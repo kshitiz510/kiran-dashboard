@@ -1,3 +1,4 @@
+// KIRAN Solar Dashboard - Vite & React Bundle Configuration
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 

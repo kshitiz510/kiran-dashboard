@@ -3,77 +3,161 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 
-// A simple procedural Solar Panel Component
+// An authentic procedural Solar Panel Component with proper mechanical hierarchy
 const SolarPanel = ({ azimuth, zenith }) => {
-  const group = useRef();
+  const rotationYGroup = useRef(); // Azimuth / Yaw (Y rotation)
+  const rotationXGroup = useRef(); // Zenith / Pitch (X rotation)
 
   // Convert azimuth and zenith from degrees to radians for 3D rotation
-  // Azimuth maps to Y rotation. Zenith maps to X rotation.
   const radAzimuth = THREE.MathUtils.degToRad(-azimuth); 
-  // Fix panel facing down: negative zenith rotates the panel upwards towards the sky
-  const radZenith = THREE.MathUtils.degToRad(-zenith);
+  const radZenith = THREE.MathUtils.degToRad(zenith);
   
-  // Smooth interpolation
+  // Smooth mechanical tracking simulation
   useFrame(() => {
-    if (group.current) {
-      group.current.rotation.y = THREE.MathUtils.lerp(group.current.rotation.y, radAzimuth, 0.05);
-      group.current.rotation.x = THREE.MathUtils.lerp(group.current.rotation.x, radZenith, 0.05);
+    if (rotationYGroup.current) {
+      rotationYGroup.current.rotation.y = THREE.MathUtils.lerp(rotationYGroup.current.rotation.y, radAzimuth, 0.05);
+    }
+    if (rotationXGroup.current) {
+      rotationXGroup.current.rotation.x = THREE.MathUtils.lerp(rotationXGroup.current.rotation.x, radZenith, 0.05);
     }
   });
 
   return (
-    <group ref={group}>
-      {/* Base Pole */}
+    <group>
+      {/* 1. FIXED MECHANICAL BASE (Does not rotate or tilt) */}
+      {/* Ground Anchor Flange Plate */}
       <mesh position={[0, -2, 0]}>
-        <cylinderGeometry args={[0.2, 0.3, 4, 32]} />
-        <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
+        <cylinderGeometry args={[0.6, 0.6, 0.06, 32]} />
+        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
       </mesh>
       
-      {/* Bracket / Mount */}
-      <mesh position={[0, 0, -0.2]}>
-        <boxGeometry args={[0.5, 0.5, 0.4]} />
-        <meshStandardMaterial color="#334155" metalness={0.6} roughness={0.4} />
+      {/* Main Structural Pedestal (Heavy steel support column) */}
+      <mesh position={[0, -1.0, 0]}>
+        <cylinderGeometry args={[0.2, 0.25, 2.0, 32]} />
+        <meshStandardMaterial color="#1e293b" metalness={0.85} roughness={0.2} />
       </mesh>
 
-      {/* Solar Panel Surface */}
-      <mesh position={[0, 0, 0]} castShadow>
-        <boxGeometry args={[4, 6, 0.1]} />
-        {/* Front surface (dark blue/glassy) */}
-        <meshPhysicalMaterial 
-          color="#0f172a" 
-          metalness={0.9} 
-          roughness={0.1} 
-          clearcoat={1.0}
-          clearcoatRoughness={0.1}
-        />
-      </mesh>
-      
-      {/* Panel Frame */}
-      <mesh position={[0, 0, -0.05]}>
-        <boxGeometry args={[4.2, 6.2, 0.1]} />
-        <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
-      </mesh>
-      
-      {/* Grid Lines to simulate photovoltaic cells */}
-      <gridHelper args={[4, 8, "#1e293b", "#334155"]} position={[0, 0, 0.06]} rotation={[Math.PI / 2, 0, 0]} />
+      {/* 2. AZIMUTH / YAW AXIS (Rotates horizontally around Y-axis) */}
+      <group ref={rotationYGroup} position={[0, 0.0, 0]}>
+        {/* Heavy rotating collar cap */}
+        <mesh position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.24, 0.24, 0.4, 32]} />
+          <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.25} />
+        </mesh>
+        
+        {/* Dual vertical support arms extending upwards to hold the pivot shaft */}
+        <mesh position={[-0.35, 0.35, 0]}>
+          <boxGeometry args={[0.08, 0.7, 0.24]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.3} />
+        </mesh>
+        <mesh position={[0.35, 0.35, 0]}>
+          <boxGeometry args={[0.08, 0.7, 0.24]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.3} />
+        </mesh>
+
+        {/* 3. TILT / ELEVATION AXIS (Tilts around local X-axis) */}
+        {/* Position is centered at the pivot point of the support arms */}
+        <group ref={rotationXGroup} position={[0, 0.55, 0]}>
+          {/* Main Horizontal Pivot Shaft */}
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.12, 0.12, 0.8, 24]} />
+            <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.15} />
+          </mesh>
+
+          {/* Under-panel mounting frame structural beams (X and H layout) */}
+          <mesh position={[0, 0.12, 0]}>
+            <boxGeometry args={[2.8, 0.1, 0.16]} />
+            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={[-1.1, 0.12, 0]}>
+            <boxGeometry args={[0.12, 0.1, 3.8]} />
+            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
+          </mesh>
+          <mesh position={[1.1, 0.12, 0]}>
+            <boxGeometry args={[0.12, 0.1, 3.8]} />
+            <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
+          </mesh>
+
+          {/* THE PHOTOCONVERTER ARRAY (Lying flat, facing sky Y-axis) */}
+          <group position={[0, 0.2, 0]}>
+            {/* Panel Backboard */}
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[3.2, 0.06, 4.4]} />
+              <meshStandardMaterial color="#0f172a" metalness={0.4} roughness={0.6} />
+            </mesh>
+
+            {/* Premium Photovoltaic Glass Surface (highly reflective, dark blue, glass-clearcoat) */}
+            <mesh position={[0, 0.04, 0]} castShadow>
+              <boxGeometry args={[3.1, 0.02, 4.3]} />
+              <meshPhysicalMaterial 
+                color="#030712" 
+                metalness={0.9} 
+                roughness={0.06} 
+                clearcoat={1.0}
+                clearcoatRoughness={0.04}
+              />
+            </mesh>
+
+            {/* Aluminum Protective Edge Frames */}
+            {/* Left Frame border */}
+            <mesh position={[-1.61, 0.02, 0]}>
+              <boxGeometry args={[0.03, 0.06, 4.4]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.25} />
+            </mesh>
+            {/* Right Frame border */}
+            <mesh position={[1.61, 0.02, 0]}>
+              <boxGeometry args={[0.03, 0.06, 4.4]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.25} />
+            </mesh>
+            {/* Top Frame border */}
+            <mesh position={[0, 0.02, 2.21]}>
+              <boxGeometry args={[3.25, 0.06, 0.03]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.25} />
+            </mesh>
+            {/* Bottom Frame border */}
+            <mesh position={[0, 0.02, -2.21]}>
+              <boxGeometry args={[3.25, 0.06, 0.03]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.25} />
+            </mesh>
+
+            {/* Cell Dividing Grid Lines (Subtle horizontal/vertical cell separators) */}
+            {Array.from({ length: 5 }).map((_, idx) => {
+              const x = -1.35 + (idx + 1) * (2.7 / 6);
+              return (
+                <mesh key={`grid-v-${idx}`} position={[x, 0.051, 0]}>
+                  <boxGeometry args={[0.008, 0.002, 4.25]} />
+                  <meshBasicMaterial color="#334155" transparent opacity={0.65} />
+                </mesh>
+              );
+            })}
+            {Array.from({ length: 7 }).map((_, idx) => {
+              const z = -1.9 + (idx + 1) * (3.8 / 8);
+              return (
+                <mesh key={`grid-h-${idx}`} position={[0, 0.051, z]}>
+                  <boxGeometry args={[3.05, 0.002, 0.008]} />
+                  <meshBasicMaterial color="#334155" transparent opacity={0.65} />
+                </mesh>
+              );
+            })}
+          </group>
+        </group>
+      </group>
     </group>
   );
 };
 
+// Procedural Glowing Sun Sphere
 const Sun = ({ solarAzimuth, solarZenith }) => {
   const sunRef = useRef();
   
-  // Calculate position based on spherical coordinates
-  // Adjusted mapping so it matches the panel's coordinate system
-  const radius = 10;
-  const phi = THREE.MathUtils.degToRad(solarZenith || 45); // Elevation
+  const radius = 6.5;
+  const phi = THREE.MathUtils.degToRad(solarZenith || 45); 
   const theta = THREE.MathUtils.degToRad(-(solarAzimuth || 180) + 90); 
   
   const x = radius * Math.sin(phi) * Math.cos(theta);
   const y = radius * Math.cos(phi);
   const z = radius * Math.sin(phi) * Math.sin(theta);
 
-  // Smooth interpolation for the sun
   useFrame(() => {
     if (sunRef.current) {
       sunRef.current.position.x = THREE.MathUtils.lerp(sunRef.current.position.x, x, 0.02);
@@ -83,15 +167,16 @@ const Sun = ({ solarAzimuth, solarZenith }) => {
   });
 
   return (
-    <mesh position={[0, 10, 0]} ref={sunRef}>
-      <sphereGeometry args={[0.5, 32, 32]} />
-      <meshBasicMaterial color="#fcd34d" />
-      <pointLight color="#fef3c7" intensity={400} distance={100} decay={2} castShadow />
+    <mesh position={[0, 6.5, 0]} ref={sunRef}>
+      <sphereGeometry args={[0.3, 32, 32]} />
+      {/* Basic material with warm amber tone to represent glowing core */}
+      <meshBasicMaterial color="#f59e0b" />
+      <pointLight color="#fbbf24" intensity={200} distance={50} decay={2.0} castShadow />
     </mesh>
   );
 };
 
-const SolarSandbox = ({ panelAzimuth = 0, panelZenith = 0, solarAzimuth = 0, solarZenith = 45 }) => {
+const SolarSandbox = ({ panelAzimuth = 0, panelZenith = 0, solarAzimuth = 0, solarZenith = 45, isNightFallback = false }) => {
   const [isManual, setIsManual] = useState(false);
   const [mPanelAzimuth, setMPanelAzimuth] = useState(180);
   const [mPanelZenith, setMPanelZenith] = useState(45);
@@ -148,78 +233,98 @@ const SolarSandbox = ({ panelAzimuth = 0, panelZenith = 0, solarAzimuth = 0, sol
   const powerOutput = voltage * current;
 
   return (
-    <div className="w-full h-[650px] bg-slate-950 rounded-xl overflow-hidden shadow-2xl relative border border-slate-800 animate-fadeIn">
-      {/* HUD Info */}
-      <div className="absolute top-4 left-4 z-10 bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-white/10 text-white shadow-xl pointer-events-none w-80 flex flex-col space-y-4">
+    <div className="w-full h-[650px] bg-slate-100 rounded-xl overflow-hidden shadow-sm relative border border-slate-200 animate-fadeIn">
+      {/* HUD Info Panel (Clean Light Frosted Design) */}
+      <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/80 text-slate-800 shadow-lg pointer-events-none w-80 flex flex-col space-y-4">
         <div>
-          <span className="text-[10px] font-bold tracking-widest text-blue-400 uppercase block mb-1">
+          <span className="text-[10px] font-bold tracking-widest text-blue-600 uppercase block mb-1">
             Sandbox Controller
           </span>
-          <h3 className="text-md font-extrabold text-white font-outfit">
+          <h3 className="text-md font-extrabold text-slate-900 font-outfit">
             Solar Physics Digital Twin
           </h3>
+          {/* Tracking Mode Indicator */}
+          <div className="mt-2 flex items-center space-x-1.5 bg-slate-50 border border-slate-100 rounded-lg py-1 px-2.5 w-fit">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                isManual ? "bg-blue-400" : isNightFallback ? "bg-indigo-400" : "bg-emerald-400"
+              }`}></span>
+              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${
+                isManual ? "bg-blue-600" : isNightFallback ? "bg-indigo-600" : "bg-emerald-600"
+              }`}></span>
+            </span>
+            <span className="text-[9px] font-bold text-slate-600 tracking-wide uppercase font-sans">
+              {isManual ? (
+                "Manual Override Mode 🛠️"
+              ) : isNightFallback ? (
+                "Night Emulation Fallback 🌙"
+              ) : (
+                "Daytime Live Tracking ☀️"
+              )}
+            </span>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/10 pt-3 text-xs font-mono">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-t border-slate-200/80 pt-3 text-xs font-mono">
           <div>
-            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Sun Pos (Az/Zen)</span>
-            <span className="text-sm font-bold text-amber-400">
+            <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Sun Pos (Az/Zen)</span>
+            <span className="text-sm font-bold text-amber-600">
               {currentSunAzimuth.toFixed(0)}° / {currentSunZenith.toFixed(0)}°
             </span>
           </div>
           <div>
-            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Panel Pos (Az/Zen)</span>
-            <span className="text-sm font-bold text-blue-400">
+            <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Panel Pos (Az/Zen)</span>
+            <span className="text-sm font-bold text-blue-600">
               {currentPanelAzimuth.toFixed(0)}° / {currentPanelZenith.toFixed(0)}°
             </span>
           </div>
           <div>
-            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Incident Angle</span>
-            <span className="text-sm font-bold text-white">
+            <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Incident Angle</span>
+            <span className="text-sm font-bold text-slate-800">
               {incidenceAngle.toFixed(1)}°
             </span>
           </div>
           <div>
-            <span className="text-slate-400 block text-[9px] uppercase tracking-wider">Alignment Efficiency</span>
-            <span className={`text-sm font-bold ${alignmentEfficiency > 85 ? "text-emerald-400" : alignmentEfficiency > 50 ? "text-amber-400" : "text-red-400"}`}>
+            <span className="text-slate-500 block text-[9px] uppercase tracking-wider">Alignment Rating</span>
+            <span className={`text-sm font-bold ${alignmentEfficiency > 85 ? "text-emerald-600" : alignmentEfficiency > 50 ? "text-amber-600" : "text-red-500"}`}>
               {alignmentEfficiency.toFixed(1)}%
             </span>
           </div>
         </div>
 
-        <div className="border-t border-white/10 pt-3 flex flex-col space-y-2">
+        <div className="border-t border-slate-200/80 pt-3 flex flex-col space-y-2">
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Effective Irradiance:</span>
-            <span className="font-bold font-mono text-white">{effectiveIrradiance.toFixed(0)} W/m²</span>
+            <span className="text-slate-500">Effective Irradiance:</span>
+            <span className="font-bold font-mono text-slate-800">{effectiveIrradiance.toFixed(0)} W/m²</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Panel Temperature:</span>
-            <span className="font-bold font-mono text-white">{panelTemp.toFixed(1)} °C</span>
+            <span className="text-slate-500">Panel Temperature:</span>
+            <span className="font-bold font-mono text-slate-800">{panelTemp.toFixed(1)} °C</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="text-slate-400">Operating Voltage:</span>
-            <span className="font-bold font-mono text-white">{voltage.toFixed(1)} V</span>
+            <span className="text-slate-500">Operating Voltage:</span>
+            <span className="font-bold font-mono text-slate-800">{voltage.toFixed(1)} V</span>
           </div>
-          <div className="flex justify-between items-center text-xs border-t border-white/5 pt-2">
-            <span className="text-slate-300 font-bold">Simulated Power Output:</span>
-            <span className="font-extrabold font-mono text-emerald-400 text-lg">
+          <div className="flex justify-between items-center text-xs border-t border-slate-200/50 pt-2">
+            <span className="text-slate-700 font-bold">Simulated Power Output:</span>
+            <span className="font-extrabold font-mono text-emerald-600 text-lg">
               {powerOutput.toFixed(1)} W
             </span>
           </div>
         </div>
       </div>
       
-      {/* Control Panel */}
-      <div className="absolute top-4 right-4 z-10 w-72 bg-slate-900/80 backdrop-blur-md p-5 rounded-xl border border-white/10 text-white shadow-xl flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+      {/* Control Panel (Clean Light Frosted Design) */}
+      <div className="absolute top-4 right-4 z-10 w-72 bg-white/90 backdrop-blur-md p-5 rounded-xl border border-slate-200/80 text-slate-800 shadow-lg flex flex-col gap-4">
+        <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
           <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Manual Override</span>
-            <p className="text-[10px] text-slate-500 mt-0.5">Toggle to control panel/sun angles</p>
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">Manual Override</span>
+            <p className="text-[10px] text-slate-500 mt-0.5">Control panel & sun vectors</p>
           </div>
           <button
             onClick={toggleManual}
             className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              isManual ? "bg-blue-600" : "bg-slate-700"
+              isManual ? "bg-blue-600" : "bg-slate-300"
             }`}
           >
             <span
@@ -233,70 +338,74 @@ const SolarSandbox = ({ panelAzimuth = 0, panelZenith = 0, solarAzimuth = 0, sol
         {isManual ? (
           <div className="space-y-4 animate-fadeIn">
             <div>
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                 <span>Panel Azimuth (Yaw)</span>
-                <span className="text-blue-400 font-mono">{mPanelAzimuth}°</span>
+                <span className="text-blue-600 font-mono">{mPanelAzimuth}°</span>
               </div>
-              <input type="range" min="0" max="360" value={mPanelAzimuth} onChange={(e) => setMPanelAzimuth(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+              <input type="range" min="0" max="360" value={mPanelAzimuth} onChange={(e) => setMPanelAzimuth(Number(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
             </div>
             <div>
-              <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+              <div className="flex justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                 <span>Panel Zenith (Tilt)</span>
-                <span className="text-blue-400 font-mono">{mPanelZenith}°</span>
+                <span className="text-blue-600 font-mono">{mPanelZenith}°</span>
               </div>
-              <input type="range" min="0" max="90" value={mPanelZenith} onChange={(e) => setMPanelZenith(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-500" />
+              <input type="range" min="0" max="90" value={mPanelZenith} onChange={(e) => setMPanelZenith(Number(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
             </div>
-            <div className="border-t border-white/10 pt-3">
-              <div className="flex justify-between text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">
+            <div className="border-t border-slate-200/80 pt-3">
+              <div className="flex justify-between text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">
                 <span>Sun Azimuth</span>
                 <span className="font-mono">{mSunAzimuth}°</span>
               </div>
-              <input type="range" min="0" max="360" value={mSunAzimuth} onChange={(e) => setMSunAzimuth(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+              <input type="range" min="0" max="360" value={mSunAzimuth} onChange={(e) => setMSunAzimuth(Number(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
             </div>
             <div>
-              <div className="flex justify-between text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-1">
+              <div className="flex justify-between text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">
                 <span>Sun Zenith</span>
                 <span className="font-mono">{mSunZenith}°</span>
               </div>
-              <input type="range" min="0" max="90" value={mSunZenith} onChange={(e) => setMSunZenith(Number(e.target.value))} className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+              <input type="range" min="0" max="90" value={mSunZenith} onChange={(e) => setMSunZenith(Number(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-amber-500" />
             </div>
           </div>
         ) : (
-          <div className="text-xs text-slate-400 leading-relaxed bg-slate-950/40 p-3 rounded-lg border border-white/5 font-sans">
-            <span className="font-bold text-emerald-400">Automatic Solar Tracking Active.</span> The panel is automatically rotating on its single axis to track the simulated sun vector. Toggle Manual Override above to perform calibration tests and scenario analysis.
+          <div className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-100 p-3 rounded-lg font-sans">
+            <span className="font-bold text-emerald-600">Auto Tracking Active.</span> The panel is automatically adjusting on its horizontal Cap and vertical Shaft axis. Toggle Manual Override to execute misalignment experiments.
           </div>
         )}
       </div>
 
-      <div className="absolute bottom-4 left-4 z-10 bg-black/50 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-slate-300 text-xs shadow-lg pointer-events-none">
+      <div className="absolute bottom-4 left-4 z-10 bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg border border-white/10 text-slate-300 text-xs shadow-lg pointer-events-none">
         <span className="font-bold text-white mr-1">Controls:</span> Left-Click + Drag to rotate view, Scroll to Zoom
       </div>
 
       <Canvas shadows camera={{ position: [8, 5, 8], fov: 45 }}>
-        <color attach="background" args={['#0f172a']} />
+        {/* Soft daylight blue sky background */}
+        <color attach="background" args={['#f0f9ff']} />
         
-        {/* Soft ambient light */}
-        <ambientLight intensity={0.5} color="#94a3b8" />
+        {/* Soft ambient lighting */}
+        <ambientLight intensity={0.65} color="#cbd5e1" />
         
-        {/* Environment mapping for reflections */}
+        {/* Hemispherical light (Sky color + Ground color reflection) */}
+        <hemisphereLight intensity={0.5} color="#f0f9ff" groundColor="#1e293b" />
+        
+        {/* Environment map for realistic metals/glass reflections */}
         <Environment preset="city" />
         
         {/* The dynamic sun acting as the main light source */}
         <Sun solarAzimuth={currentSunAzimuth} solarZenith={currentSunZenith} />
         
-        {/* The Solar Panel Group */}
+        {/* The Solar Panel assembly */}
         <SolarPanel azimuth={currentPanelAzimuth} zenith={currentPanelZenith} />
         
         {/* Ground Plane with shadows */}
-        <ContactShadows position={[0, -2, 0]} opacity={0.7} scale={20} blur={2.5} far={4} />
-        <mesh position={[0, -2.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <ContactShadows position={[0, -2.02, 0]} opacity={0.6} scale={20} blur={2.5} far={4} />
+        <mesh position={[0, -2.03, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
           <planeGeometry args={[50, 50]} />
           <meshStandardMaterial color="#1e293b" />
         </mesh>
         
-        <gridHelper args={[50, 50, "#334155", "#0f172a"]} position={[0, -1.99, 0]} />
+        <gridHelper args={[50, 50, "#334155", "#1e293b"]} position={[0, -2.01, 0]} />
         
-        <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 + 0.1} minDistance={4} maxDistance={30} />
+        <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 + 0.05} minDistance={4} maxDistance={45} />
       </Canvas>
     </div>
   );

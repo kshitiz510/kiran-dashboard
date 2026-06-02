@@ -1,4 +1,5 @@
 /** @type {import('tailwindcss').Config} */
+// KIRAN Dashboard Design System - Tailwind Config and Font Extensions
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
